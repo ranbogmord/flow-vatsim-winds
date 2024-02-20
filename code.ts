@@ -22,16 +22,6 @@ let active = false;
 let updateInterval: number|undefined;
 
 settings_define({
-    // sync_clouds: {
-    //     label: "Sync cloud layers",
-    //     description: "Enable if you also want to sync cloud layers from the VATSIM METAR report. Turn off if you want to only sync the required information (Temp, Pressure and Winds)",
-    //     type: "checkbox",
-    //     value: this.store.sync_clouds as boolean,
-    //     changed(value) {
-    //         this.store.sync_clouds = value as boolean;
-    //         this.$api.datastore.export(this.store);
-    //     },
-    // }
     only_metar: {
         label: 'Only surface winds',
         description: 'Only sync surface winds, skip winds aloft',
@@ -98,7 +88,7 @@ run(() => {
                 return;
             }
 
-            triggerUpdate(lat, lon, true);
+            void triggerUpdate(lat, lon, true);
         }, 1000 * 60 * 15 /* 15 minutes */);
     }
 });
@@ -109,33 +99,22 @@ exit(() => {
 });
 
 const triggerUpdate = async (lat: number, lon: number, doInterpolate: boolean = false) => {
-    try {
-        const results = await Promise.all([
-            updateVatsim(lat, lon),
-            updateMeteo(lat, lon)
-        ])
-        updateWx(results[0], results[1], doInterpolate);
-    } catch (err) {
-        console.log("error updating weather");
-        
-        console.log((err as Error).message);
-        console.log(err);
-    }
-};
+    let vatsimWx: WeatherReport|undefined;
+    let meteoWx: ParsedWindLayer|undefined;
 
-const cloudMap = {
-    FEW: {
-        coverage: 25,
-    },
-    SCT: {
-        coverage: 50
-    },
-    BKN: {
-        coverage: 90
-    },
-    OVC: {
-        coverage: 100
+    try {
+        vatsimWx = await updateVatsim(lat, lon);
+    } catch (err) {
+        console.log("Failed fetching VATSIM wx");
+        console.log((err as Error).message);
     }
+    try {
+        meteoWx = await updateMeteo(lat, lon)
+    } catch (err) {
+        console.log("error updating meteo wx");
+        console.log((err as Error).message);
+    }
+    updateWx(vatsimWx, meteoWx, doInterpolate);
 };
 
 const updateWx = (vatsim: WeatherReport|undefined, meteo: ParsedWindLayer|undefined, doInterpolate: boolean = false) => {
@@ -302,25 +281,6 @@ const updateWx = (vatsim: WeatherReport|undefined, meteo: ParsedWindLayer|undefi
             "clamp_max": 32.01062774658203,
             "percent": 0
         }
-        // currentWx.oSettings.dvHumidityMultiplier = {
-        //     "__Type": "RangeDataValue",
-        //     "ID": 0,
-        //     "icon": "",
-        //     "name": "TT:MENU.WEATHER_TOOLBAR_PANEL_SETTINGS_HUMIDITY",
-        //     "valueStr": "",
-        //     "value": ((vatsim.humidity_percent / 100) * 20) + 1,
-        //     "type": "",
-        //     "unit": "",
-        //     "quality": 0,
-        //     "html": "",
-        //     "userTag": 0,
-        //     "min": 1,
-        //     "max": 20,
-        //     "step": 0.10000000149011612,
-        //     "clamp_min": 1,
-        //     "clamp_max": 20,
-        //     "percent": 0
-        // }
 
         if (meteo) {
             currentWx.tWindLayers = [currentWx.tWindLayers[0]];
@@ -461,7 +421,7 @@ const updateMeteo = async (lat: number, lon: number) => {
     const d = new Date();
     const date = `${d.getUTCFullYear()}-${leftPad(d.getUTCMonth() + 1, 2)}-${leftPad(d.getUTCDate(), 2)}`;
     console.log("update meteo");
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=windspeed_950hPa,windspeed_925hPa,windspeed_900hPa,windspeed_850hPa,windspeed_800hPa,windspeed_700hPa,windspeed_600hPa,windspeed_500hPa,windspeed_400hPa,windspeed_300hPa,windspeed_250hPa,windspeed_200hPa,windspeed_150hPa,windspeed_100hPa,winddirection_950hPa,winddirection_925hPa,winddirection_900hPa,winddirection_850hPa,winddirection_800hPa,winddirection_700hPa,winddirection_600hPa,winddirection_500hPa,winddirection_400hPa,winddirection_300hPa,winddirection_250hPa,winddirection_200hPa,winddirection_150hPa,winddirection_100hPa,geopotential_height_950hPa,geopotential_height_925hPa,geopotential_height_900hPa,geopotential_height_850hPa,geopotential_height_800hPa,geopotential_height_700hPa,geopotential_height_600hPa,geopotential_height_500hPa,geopotential_height_400hPa,geopotential_height_300hPa,geopotential_height_250hPa,geopotential_height_200hPa,geopotential_height_150hPa,geopotential_height_100hPa&windspeed_unit=kn&forecast_days=1&start_date=${date}&end_date=${date}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=windspeed_950hPa,windspeed_925hPa,windspeed_900hPa,windspeed_850hPa,windspeed_800hPa,windspeed_700hPa,windspeed_600hPa,windspeed_500hPa,windspeed_400hPa,windspeed_300hPa,windspeed_250hPa,windspeed_200hPa,windspeed_150hPa,windspeed_100hPa,winddirection_950hPa,winddirection_925hPa,winddirection_900hPa,winddirection_850hPa,winddirection_800hPa,winddirection_700hPa,winddirection_600hPa,winddirection_500hPa,winddirection_400hPa,winddirection_300hPa,winddirection_250hPa,winddirection_200hPa,winddirection_150hPa,winddirection_100hPa,geopotential_height_950hPa,geopotential_height_925hPa,geopotential_height_900hPa,geopotential_height_850hPa,geopotential_height_800hPa,geopotential_height_700hPa,geopotential_height_600hPa,geopotential_height_500hPa,geopotential_height_400hPa,geopotential_height_300hPa,geopotential_height_250hPa,geopotential_height_200hPa,geopotential_height_150hPa,geopotential_height_100hPa&windspeed_unit=kn&&start_date=${date}&end_date=${date}`;
 
     return fetch(url)
         .then(res => res.json() as Promise<WindLayerReport>)
